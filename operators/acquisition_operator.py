@@ -38,7 +38,7 @@ class AcquisitionOperator(BaseOperator):
         matching_files = [obj['Key'] for obj in response['Contents'] if pattern.search(obj['Key'])]
 
         if matching_files:
-            # context['ti'].xcom_push(key="files_found",value=matching_files)
+            context['ti'].xcom_push(key="files_found",value=matching_files)
             self.log.info(f"Found matching files: {matching_files}")
         else:
             self.log.error(f"No files matching pattern '{self.file_pattern}' found under prefix '{self.dataset_dir}'.")
