@@ -4,13 +4,15 @@ import tempfile
 import boto3
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
+from datetime import datetime
+import pendulum
 
 class DownloadOperator(BaseOperator):
 
-    def __init__(self, s3_conn_id, bucket_name,dataset_dir,file_name, *args, **kwargs):
+    def __init__(self, s3_conn_id, bucket_name,dataset_dir,file_name,datetime_pattern, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
+        self.datetime_pattern = datetime_pattern
         self.file_name = file_name
         self.dataset_dir = dataset_dir
         self.s3_client = S3Hook(aws_conn_id=s3_conn_id).get_conn()
@@ -19,6 +21,13 @@ class DownloadOperator(BaseOperator):
 
         temp_dir = tempfile.mkdtemp()
         print(f"Temporary directory created at: {temp_dir}")
+
+        self.log.info(f"""data_interval_end:{context["data_interval_end"]}""")
+
+        dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(), pendulum.tz.UTC).strftime( self.datetime_pattern)
+        self.file_name = self.file_name.replace("datetime_pattern", dag_run_date)
+
+        self.log.info(f"file_name:{self.file_name}")
 
         try:
             files_found = context['ti'].xcom_pull(key="files_found")
