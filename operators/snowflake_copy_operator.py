@@ -5,6 +5,9 @@ from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from core_utils.file_utils import read_and_infer,identify_delimiter
 
+from operators.constants import mirror_file_meta_cols, mirror_meta_cols
+
+
 class SnowflakeCopyOperator(BaseOperator):
     def __init__(self, snowflake_conn_id, stage_name,table_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -51,12 +54,20 @@ class SnowflakeCopyOperator(BaseOperator):
 
     def copy_into_table(self,conn, stage_name, table_name,columns, file_format_name, file_path):
 
-        cols_list = ",".join([f"${index+1} as {col_name.upper()}" for index, col_name in enumerate(columns)])
+        cols_list_str = ",".join([f"${index+1} as {col_name.upper()}" for index, col_name in enumerate(columns)])
+
+        meta_cols = []
+        for col in mirror_file_meta_cols:
+            meta_cols.append(f"metadata${col} as {col}")
+
+        meta_cols_list_str = ",".join(meta_cols)
+
         # Define the SQL command to load data from the stage into the table
         copy_sql = f"""        
         COPY INTO {table_name}
         FROM (
-            SELECT {cols_list}
+            SELECT {cols_list_str},{meta_cols_list_str},
+            current_timestamp as created_dts, current_user as created_by
             FROM '@{stage_name}'
         )
         FILES = ('{file_path}')
