@@ -63,7 +63,9 @@ class SnowflakeCopyOperator(BaseOperator):
         meta_cols_list_str = ",".join(meta_cols)
 
         # Define the SQL command to load data from the stage into the table
-        copy_sql = f"""        
+        copy_sql = f"""
+        TRUNCATE TABLE {table_name};
+                
         COPY INTO {table_name}
         FROM (
             SELECT {cols_list_str},{meta_cols_list_str},
