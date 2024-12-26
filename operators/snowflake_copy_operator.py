@@ -63,7 +63,7 @@ class SnowflakeCopyOperator(BaseOperator):
             cur.execute(create_file_format_sql)
             self.log.info(f"File format {file_format_name} created successfully.")
 
-    def copy_into_table(self,conn, stage_name, table_name,columns, file_format_name, file_path):
+    def copy_into_table(self,conn, stage_name, table_name,columns, file_format_name, file_path,run_date):
 
         cols_list_str = ",".join([f"${index+1} as {col_name.upper()}" for index, col_name in enumerate(columns)])
 
@@ -79,7 +79,7 @@ class SnowflakeCopyOperator(BaseOperator):
         copy_sql = f"""         
         COPY INTO {table_name}
         FROM (
-            SELECT {cols_list_str},{meta_cols_list_str},
+            SELECT {cols_list_str},{run_date},{meta_cols_list_str},
             current_timestamp as created_dts, current_user as created_by
             FROM '@{stage_name}'
         )
@@ -138,4 +138,4 @@ class SnowflakeCopyOperator(BaseOperator):
 
         self.log.info(f"File schema: {columns}")
 
-        self.copy_into_table(self.sf_conn, self.stage_name, self.table_name, columns, file_format_name, stage_file_name)
+        self.copy_into_table(self.sf_conn, self.stage_name, self.table_name, columns, file_format_name, stage_file_name,dag_run_date)
