@@ -3,7 +3,7 @@ from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
-class LoadOperator(BaseOperator):
+class MoveFileToSnowflakeOperator(BaseOperator):
     def __init__(self, snowflake_conn_id, stage_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stage_name = stage_name
