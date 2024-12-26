@@ -21,9 +21,9 @@ class MirrorLoadOperator(BaseOperator):
 
         try:
             # Build the command
-            dbt_build_str = f"""dbt build --select tag:{self.dataset_name} --vars '{{"run_date": "{dag_run_date}"}}'"""
+            dbt_build_str = f""" dbt run --select tag:{self.dataset_name} --vars "{{'run_date': '{dag_run_date}'}}" """
 
-            command = ['/usr/bin/bash','-c', f' python /opt/dbt_snowflake/generate_modesl.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" \
+            command = ['/usr/bin/bash','-c', f' python /opt/dbt_snowflake/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" \
                          --run_date "{dag_run_date}" --mode "airflow" --force_download "true" \
                         --s3_conn_id "{self.s3_conn_id}" --snowflake_conn_id "{self.snowflake_conn_id}" \
                         --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" ' ]
