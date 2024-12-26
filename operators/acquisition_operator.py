@@ -42,5 +42,6 @@ class AcquisitionOperator(BaseOperator):
             self.log.info(f"Found matching files: {matching_files}")
         else:
             self.log.error(f"No files matching pattern '{self.file_pattern}' found under prefix '{self.dataset_dir}'.")
+            raise Exception(f"No files matching pattern '{self.file_pattern}' found under prefix '{self.dataset_dir}'.")
 
         return matching_files

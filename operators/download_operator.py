@@ -29,8 +29,14 @@ class DownloadOperator(BaseOperator):
 
         self.log.info(f"file_name:{self.file_name}")
 
+        files_found = context['ti'].xcom_pull(key="files_found")
+
+        if not len(files_found) > 0:
+            self.log.error(f"No files found: {files_found} to download.")
+            raise Exception(f"No files found: {files_found} to download.")
+
         try:
-            files_found = context['ti'].xcom_pull(key="files_found")
+
             # Download the file
             files_downloaded = []
             for file_name in files_found:

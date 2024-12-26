@@ -36,7 +36,7 @@ class MirrorLoadOperator(BaseOperator):
             result = subprocess.run(command,shell=True, capture_output=True, text=True, check=True)
 
             # Log the output
-            if not len(result.stdout)>0:
+            if  len(result.stdout)>0:
                 self.log.info(f"Command output: {result.stdout}")
             else:
                 self.log.error(f"Command output: {result.stderr}")
