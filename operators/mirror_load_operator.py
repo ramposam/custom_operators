@@ -15,34 +15,44 @@ class MirrorLoadOperator(BaseOperator):
         self.s3_conn_id = s3_conn_id
         self.snowflake_conn_id = snowflake_conn_id
 
+    def execute_dbt_command(self, dbt_command):
+        """
+        Execute the dbt command as a subprocess.
+        """
+        try:
+            self.log.info(f"Running dbt command: {dbt_command}")
+            process = subprocess.Popen(
+                dbt_command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            stdout, stderr = process.communicate()
+
+            if len(stdout) > 0:
+                self.log.info(f"Command output: {stdout}")
+            else:
+                self.log.error(f"Command output: {stderr}")
+                raise Exception(f"Command output: {stderr}")
+
+            return stdout
+        except subprocess.CalledProcessError as e:
+            self.log.error(f"Command failed with error: {e.stderr}")
+            raise
 
     def execute(self, context):
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
 
-        try:
-            # Build the command
-            dbt_build_str = f""" dbt run --select tag:{self.dataset_name} --vars "{{'run_date': '{dag_run_date}'}}" """
+        # Build the command
+        dbt_build_str = f" cd /opt/dbt_snowflake/dbt &  dbt run --select tag:{self.dataset_name} --vars \\\" {{\\\'run_date\\\': \\\'{dag_run_date}\\\'}} \\\" "
 
-            command = ['/usr/bin/bash','-c', f' python /opt/dbt_snowflake/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" \
-                         --run_date "{dag_run_date}" --mode "airflow" --force_download "true" \
-                        --s3_conn_id "{self.s3_conn_id}" --snowflake_conn_id "{self.snowflake_conn_id}" \
-                        --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" ' ]
+        command = f' python /opt/dbt_snowflake/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" \
+                     --run_date "{dag_run_date}" --mode "airflow" --force_download "true" \
+                    --s3_conn_id "{self.s3_conn_id}" --snowflake_conn_id "{self.snowflake_conn_id}" \
+                    --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" '
 
 
-            # Log the command being executed
-            self.log.info(f"Executing command: {command}")
+        self.execute_dbt_command(command)
 
-            # Run the command
-            result = subprocess.run(command,shell=True, capture_output=True, text=True, check=True)
-
-            # Log the output
-            if  len(result.stdout)>0:
-                self.log.info(f"Command output: {result.stdout}")
-            else:
-                self.log.error(f"Command output: {result.stderr}")
-                raise Exception(f"Command output: {result.stderr}")
-
-            return result.stdout
-        except subprocess.CalledProcessError as e:
-            self.log.error(f"Command failed with error: {e.stderr}")
-            raise
