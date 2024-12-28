@@ -13,7 +13,7 @@ class DownloadOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
         self.datetime_pattern = datetime_pattern
-        self.file_name = file_name
+        self.file_pattern = file_name
         self.dataset_dir = dataset_dir
         self.s3_client = S3Hook(aws_conn_id=s3_conn_id).get_conn()
 
@@ -25,9 +25,10 @@ class DownloadOperator(BaseOperator):
         self.log.info(f"""data_interval_end:{context["data_interval_end"]}""")
 
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(), pendulum.tz.UTC).strftime( self.datetime_pattern)
-        self.file_name = self.file_name.replace("datetime_pattern", dag_run_date)
+        # self.file_name = self.file_name.replace("datetime_pattern", dag_run_date)
+        file_pattern = self.file_pattern.format(datetime_pattern=dag_run_date) if "datetime_pattern" in self.file_pattern else self.file_pattern
 
-        self.log.info(f"file_name:{self.file_name}")
+        self.log.info(f"file_name:{file_pattern}")
 
         files_found = context['ti'].xcom_pull(key="files_found")
 
@@ -40,7 +41,7 @@ class DownloadOperator(BaseOperator):
             # Download the file
             files_downloaded = []
             for file_name in files_found:
-                download_path = os.path.join(temp_dir, os.path.basename(self.file_name))
+                download_path = os.path.join(temp_dir, os.path.basename(file_pattern))
                 self.log.info(
                     f"Downloading file '{file_name}' from bucket '{self.bucket_name}' to '{download_path}'.")
 

@@ -27,12 +27,12 @@ class AcquisitionOperator(BaseOperator):
         self.log.info(f"""data_interval_end:{context["data_interval_end"]}""")
 
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime(self.datetime_pattern)
-        self.file_pattern = self.file_pattern.replace("datetime_pattern",dag_run_date)
+        file_pattern = self.file_pattern.format(datetime_pattern=dag_run_date) if "datetime_pattern" in self.file_pattern else self.file_pattern
 
-        self.log.info(f"file_pattern:{self.file_pattern}")
+        self.log.info(f"file_pattern:{file_pattern}")
 
         # Compile the regex pattern
-        pattern = re.compile(self.file_pattern)
+        pattern = re.compile(file_pattern)
 
         # Filter keys based on the regex pattern
         matching_files = [obj['Key'] for obj in response['Contents'] if pattern.search(obj['Key'])]
@@ -41,7 +41,7 @@ class AcquisitionOperator(BaseOperator):
             context['ti'].xcom_push(key="files_found",value=matching_files)
             self.log.info(f"Found matching files: {matching_files}")
         else:
-            self.log.error(f"No files matching pattern '{self.file_pattern}' found under prefix '{self.dataset_dir}'.")
-            raise Exception(f"No files matching pattern '{self.file_pattern}' found under prefix '{self.dataset_dir}'.")
+            self.log.error(f"No files matching pattern '{file_pattern}' found under prefix '{self.dataset_dir}'.")
+            raise Exception(f"No files matching pattern '{file_pattern}' found under prefix '{self.dataset_dir}'.")
 
         return matching_files
