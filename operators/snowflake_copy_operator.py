@@ -79,7 +79,7 @@ class SnowflakeCopyOperator(BaseOperator):
         copy_sql = f"""         
         COPY INTO {table_name}
         FROM (
-            SELECT {cols_list_str},{run_date},{meta_cols_list_str},
+            SELECT {cols_list_str},'{run_date}',{meta_cols_list_str},
             current_timestamp as created_dts, current_user as created_by
             FROM '@{stage_name}'
         )

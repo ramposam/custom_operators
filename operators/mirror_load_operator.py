@@ -46,12 +46,12 @@ class MirrorLoadOperator(BaseOperator):
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
 
         # Build the command
-        dbt_build_str = f" cd /opt/dbt_snowflake/dbt &  dbt run --select tag:{self.dataset_name} --vars \\\" {{\\\'run_date\\\': \\\'{dag_run_date}\\\'}} \\\" "
+        dbt_build_str = f" cd /opt/dbt_snowflake/dbt/ &&  dbt run --select tag:{self.dataset_name} --vars \\\" {{\\\'run_date\\\': \\\'{dag_run_date}\\\'}} \\\" "
 
-        command = f' python /opt/dbt_snowflake/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" \
-                     --run_date "{dag_run_date}" --mode "airflow" --force_download "true" \
-                    --s3_conn_id "{self.s3_conn_id}" --snowflake_conn_id "{self.snowflake_conn_id}" \
-                    --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" '
+        command = f' python /opt/dbt_snowflake/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" ' \
+                  f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
+                  f' --s3_conn_id "{self.s3_conn_id}" --snowflake_conn_id "{self.snowflake_conn_id}" ' \
+                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" '
 
 
         self.execute_dbt_command(command)
