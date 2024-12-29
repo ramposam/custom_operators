@@ -27,17 +27,20 @@ class SnowflakeCopyOperator(BaseOperator):
         self.sf_conn = SnowflakeHook(snowflake_conn_id=snowflake_conn_id).get_conn()
 
     def get_snowflake_stg_file_details(self):
-        list_files_query = f"list @{self.stage_name}"
-        with self.sf_conn.cursor() as cur:
-            cur.execute(list_files_query)
-            result = cur.fetchall()
-            stage_file_name = result[0][0].split("/")[-1]
-            # file_name = stage_file_name.replace(".gz", "") if stage_file_name.endswith(".gz") else stage_file_name
-            # db_schema = ".".join(self.table_name.split(".")[:-1])
-            # file_format = f"""{db_schema}.ff_{self.stage_name.split(".")[-1][4:].lower().split('.')[0]}"""
-            # compression = "gzip" if stage_file_name != "csv" else "NONE"
-            self.log.info(f"Stage file:{stage_file_name}")
-        return stage_file_name
+        try:
+            list_files_query = f"list @{self.stage_name}"
+            with self.sf_conn.cursor() as cur:
+                cur.execute(list_files_query)
+                result = cur.fetchall()
+                stage_file_name = result[0][0].split("/")[-1]
+                # file_name = stage_file_name.replace(".gz", "") if stage_file_name.endswith(".gz") else stage_file_name
+                # db_schema = ".".join(self.table_name.split(".")[:-1])
+                # file_format = f"""{db_schema}.ff_{self.stage_name.split(".")[-1][4:].lower().split('.')[0]}"""
+                # compression = "gzip" if stage_file_name != "csv" else "NONE"
+                self.log.info(f"Stage file:{stage_file_name}")
+            return stage_file_name
+        except Exception as ex:
+            self.log.error(f"Query Result:{result} and error is:{ex.__str__()}")
 
     def create_file_format(self,conn, file_format_name, file_type="CSV", delimiter=",",skip_header=1, compression="NONE"):
         # Define the SQL command to create the file format
