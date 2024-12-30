@@ -86,40 +86,42 @@ class FileTableSchemaCheckOperator(BaseOperator):
                                  stage_name=self.stage_name)
         cursor.execute(f"{file_schema_query_formatted}")
         result = cursor.fetchall()
-        self.log.info(f"File header columns count: {result[0]}")
+        self.log.info(f"Received file header columns count: {result[0]}")
         file_cols_cnt = result[0][0]
         query_select_cols_str  = ",".join([f"${index+1}" for index,val in enumerate(range(file_cols_cnt)) ])
 
         file_cols_query_formatted = file_cols_query.format(file_format_name=file_format_name,
                                  stage_name=self.stage_name,
                                  query_select_cols_str=query_select_cols_str)
-        self.log.info(f"Stage file columns query:{file_cols_query_formatted}")
+        self.log.info(f"Staged file columns query:{file_cols_query_formatted}")
         cursor.execute(f"{file_cols_query_formatted}")
         result = cursor.fetchall()
-        self.log.info(f"File header columns: {result[0]}")
+        self.log.info(f"Received file header columns: {result[0]}")
 
         file_cols_ordered = [f"""{col.replace(" ","_").upper()}""" for col in list(result[0])]
         self.log.info(f"File columns formatted: {file_cols_ordered}")
         file_cols_str = ",".join(file_cols_ordered)
 
-        mirror_db = self.table_name.split(".")[0] if "." in self.table_name else "MIRROR_DB"
-        mirror_schema = self.table_name.split(".")[1] if "." in self.table_name else "MIRROR"
-        mirror_table = self.table_name.split(".")[2] if "." in self.table_name else self.table_name
+        # mirror_db = self.table_name.split(".")[0] if "." in self.table_name else "MIRROR_DB"
+        # mirror_schema = self.table_name.split(".")[1] if "." in self.table_name else "MIRROR"
+        # mirror_table = self.table_name.split(".")[2] if "." in self.table_name else self.table_name
+        file_config_columns = list(configs[self.dataset_name]["mirror"]["file_schema"].keys())
+        self.log.info(f"Configured columns : {file_config_columns}")
 
-        table_cols_query = table_schema_query.format(mirror_db=mirror_db,
-                                                     mirror_schema=mirror_schema,
-                                                     mirror_table=mirror_table)
-        self.log.info(f"Table columns query:{table_cols_query}")
-
-        cursor.execute(f"{table_cols_query}")
-        result = cursor.fetchall()
-
-        self.log.info(f"Table columns: {result[0]}")
-
-        table_cols_str = result[0][0]
-        table_cols = table_cols_str.split(",")
-
-        if not set(file_cols_ordered) == set(table_cols):
-            raise(Exception(f"File columns:{file_cols_str} and Table cols:{table_cols_str} are not equal. "))
+        # table_cols_query = table_schema_query.format(mirror_db=mirror_db,
+        #                                              mirror_schema=mirror_schema,
+        #                                              mirror_table=mirror_table)
+        # self.log.info(f"Table columns query:{table_cols_query}")
+        #
+        # cursor.execute(f"{table_cols_query}")
+        # result = cursor.fetchall()
+        #
+        # self.log.info(f"Table columns: {result[0]}")
+        #
+        # table_cols_str = result[0][0]
+        # table_cols = table_cols_str.split(",")
+        file_config_cols_str = ",".join(file_config_columns)
+        if not set(file_cols_ordered) == set(file_config_columns):
+            raise(Exception(f"Received file columns:{file_cols_str} and Configured file cols:{file_config_cols_str} are not equal. "))
         else:
-            self.log.info(f"File columns:{file_cols_str} and Table cols:{table_cols_str} are  equal. ")
+            self.log.info(f"Received file columns:{file_cols_str} and Configured file cols:{file_config_cols_str} are  equal. ")
