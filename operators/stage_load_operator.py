@@ -53,11 +53,11 @@ class StageLoadOperator(BaseOperator):
         snowflake_account = sf_conn.host  # Account name (e.g., "account.region.snowflakecomputing.com")
         snowflake_database = sf_conn.schema  # Default database
         snowflake_extra = sf_conn.extra_dejson  # Parse JSON in "Extra" field
-
+        self.log.info(f"Snowflake :{snowflake_account}.")
         # Set environment variables
         os.environ["SNOWFLAKE_USER"] = snowflake_user
         os.environ["SNOWFLAKE_PASSWORD"] = snowflake_password
-        os.environ["SNOWFLAKE_ACCOUNT"] = snowflake_account
+        os.environ["SNOWFLAKE_ACCOUNT"] = "mwpwekh-kc41785"
         os.environ["SNOWFLAKE_DATABASE"] = "STAGE_DB"
         os.environ["SNOWFLAKE_SCHEMA"] = "STAGE"
 
