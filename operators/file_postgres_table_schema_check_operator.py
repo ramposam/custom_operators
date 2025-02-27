@@ -54,7 +54,7 @@ class FilePostgresTableSchemaCheckOperator(BaseOperator):
 
         # Transform column names
         df.columns = self.clean_column_names(df.columns)
-        file_cols = df.columns
+        file_cols = list(df.columns)
 
         self.log.info(f"Received file header columns: {file_cols}")
         file_cols_cnt = len(file_cols)

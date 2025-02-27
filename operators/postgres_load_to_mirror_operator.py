@@ -24,7 +24,7 @@ class PostgresLoadToMirrorOperator(BaseOperator):
         postgres_user = postgres_conn.login  # Username
         postgres_password = postgres_conn.password  # Password
         postgres_host = postgres_conn.host  # Account name (e.g., "account.region.postgrescomputing.com")
-        postgres_database = postgres_conn.database
+        postgres_database = postgres_conn.schema
         postgres_extra = postgres_conn.extra_dejson  # Parse JSON in "Extra" field
         self.log.info(f"postgres :{postgres_host}.")
         # Set environment variables

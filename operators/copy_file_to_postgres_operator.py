@@ -8,32 +8,48 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 import pandas as pd
 
 class CopyFileToPostgresOperator(BaseOperator):
-    def __init__(self, db_conn_id,table_name, *args, **kwargs):
+    def __init__(self, db_conn_id,table_name,file_format_params,datetime_pattern, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.file_format_params = kwargs.get("file_format", None)
+        self.file_format_params = file_format_params
         self.full_table_name = table_name
+        self.datetime_pattern = datetime_pattern
         self.postgres_conn = PostgresHook(postgres_conn_id=db_conn_id).get_conn()
 
-    # Function to extract date from filename (supports multiple formats)
-    def extract_file_date(self,file_name):
-        # Define regex patterns for various date formats
-        date_patterns = [
-            r"(\d{4}[-_]\d{2}[-_]\d{2})",  # YYYY-MM-DD or YYYY_MM_DD
-            r"(\d{2}[-_]\d{2}[-_]\d{4})",  # DD-MM-YYYY or DD_MM_YYYY
-            r"(\d{8})",  # YYYYMMDD or DDMMYYYY (need validation)
-        ]
+    def generate_regex_pattern(self,date_format):
+        # Mapping of format components to regex patterns
+        format_mapping = {
+            "YYYY": r"(\d{4})",
+            "MM": r"(\d{2})",
+            "DD": r"(\d{2})"
+        }
 
-        for pattern in date_patterns:
-            match = re.search(pattern, file_name)
-            if match:
-                date_str = match.group(1)
-                try:
-                    # Try parsing automatically with different formats
-                    return pd.to_datetime(date_str, errors="coerce", dayfirst=True)
-                except Exception:
-                    continue  # Try next pattern if parsing fails
+        # Escape special characters (- and _)
+        pattern = date_format.replace("-", "[-_]").replace("/", "[-_]").replace(".", "[-_]")
 
-        return None  # Return None if no date found
+        # Replace format placeholders with regex groups
+        for key, regex in format_mapping.items():
+            pattern = pattern.replace(key, regex)
+
+        return rf"{pattern}"
+
+    def extract_file_date(self,filename):
+        # Define regex pattern for yyyy-dd-mm format
+        pattern = self.generate_regex_pattern(self.datetime_pattern)
+
+        # Search for date pattern in filename
+        match = re.search(pattern, filename)
+        python_date_format = self.datetime_pattern.replace("YYYY", "%Y").replace("MM", "%m").replace("DD", "%d")
+
+        if match:
+            year, day, month = match.groups()  # Extract parts based on yyyy-dd-mm format
+            extracted_date = f"{year}-{day}-{month}"  # Format as input
+
+            # Convert to datetime object and reformat as YYYY-MM-DD
+            converted_date = datetime.strptime(extracted_date, python_date_format)
+
+            return converted_date
+        else:
+            return "No valid date found in filename"
 
     # Function to clean column names
     def clean_column_names(self,columns):
@@ -85,6 +101,8 @@ class CopyFileToPostgresOperator(BaseOperator):
         cur.execute(f"SELECT column_name FROM information_schema.columns WHERE table_schema = %s AND table_name = %s",
                     (schema_name,table_name))
         pg_columns = [row[0].upper() for row in cur.fetchall()]
+
+        self.log.info(f"Table columns from postgres: {pg_columns}")
 
         # Map dataframe columns to PostgreSQL table columns (ignoring order)
         df = df[[col for col in df.columns if col in pg_columns]]
