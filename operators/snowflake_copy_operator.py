@@ -15,7 +15,7 @@ from operators.constants import mirror_file_meta_cols, mirror_meta_cols
 
 
 class SnowflakeCopyOperator(BaseOperator):
-    def __init__(self, snowflake_conn_id,s3_conn_id,bucket_name,s3_configs_path, stage_name,table_name,dataset_name, *args, **kwargs):
+    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path, stage_name,table_name,dataset_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stage_name = stage_name
         self.table_name = table_name
@@ -24,7 +24,7 @@ class SnowflakeCopyOperator(BaseOperator):
         self.s3_conn_id = s3_conn_id
         self.s3_configs_path = s3_configs_path
         self.file_format_props = kwargs.get("file_format",None)
-        self.sf_conn = SnowflakeHook(snowflake_conn_id=snowflake_conn_id).get_conn()
+        self.sf_conn = SnowflakeHook(snowflake_conn_id=db_conn_id).get_conn()
 
     def get_snowflake_stg_file_details(self):
         try:

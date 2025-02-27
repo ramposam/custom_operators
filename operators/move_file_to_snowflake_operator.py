@@ -7,10 +7,10 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
 class MoveFileToSnowflakeOperator(BaseOperator):
-    def __init__(self, snowflake_conn_id, stage_name, *args, **kwargs):
+    def __init__(self, db_conn_id, stage_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stage_name = stage_name
-        self.sf_conn = SnowflakeHook(snowflake_conn_id=snowflake_conn_id).get_conn()
+        self.sf_conn = SnowflakeHook(snowflake_conn_id=db_conn_id).get_conn()
 
 
     def execute(self, context):

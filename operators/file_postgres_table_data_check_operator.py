@@ -5,21 +5,22 @@ from pathlib import Path
 import pandas as pd
 import pendulum
 from airflow.models import BaseOperator
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from core_utils import s3_utils
 from core_utils.config_reader_dbt import ConfigReaderDBT
 
-from operators.constants import table_schema_query, file_schema_query, file_cols_query
+from operators.constants import  file_schema_query, file_cols_query, postgres_table_schema_query
 
-class FileTableDataCheckOperator(BaseOperator):
-    def __init__(self, snowflake_conn_id,s3_conn_id,bucket_name,s3_configs_path,table_name,dataset_name, *args, **kwargs):
+
+class FilePostgresTableDataCheckOperator(BaseOperator):
+    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path,table_name,dataset_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.table_name = table_name
         self.dataset_name = dataset_name
         self.bucket_name = bucket_name
         self.s3_conn_id = s3_conn_id
         self.s3_configs_path = s3_configs_path
-        self.sf_conn = SnowflakeHook(snowflake_conn_id=snowflake_conn_id).get_conn()
+        self.postgres_conn = PostgresHook(postgres_conn_id=db_conn_id).get_conn()
 
     def get_file_details(self,run_date):
         temp_dir = tempfile.mkdtemp()
@@ -45,7 +46,7 @@ class FileTableDataCheckOperator(BaseOperator):
         mirror_db = self.table_name.split(".")[0] if "." in self.table_name else "MIRROR_DB"
         mirror_schema = self.table_name.split(".")[1] if "." in self.table_name else "MIRROR"
         mirror_table = self.table_name.split(".")[2] if "." in self.table_name else self.table_name
-        table_cols_query = table_schema_query.format(mirror_db=mirror_db,
+        table_cols_query = postgres_table_schema_query.format(mirror_db=mirror_db,
                                                      mirror_schema=mirror_schema,
                                                      mirror_table=mirror_table)
         self.log.info(f"Table columns query:{table_cols_query}")
@@ -55,7 +56,7 @@ class FileTableDataCheckOperator(BaseOperator):
         df_staging.columns = df_staging.columns.str.upper().str.replace(" ", "_")
         self.log.info(f"df_staging cols {df_staging.columns} ,{df_staging}")
 
-        cursor = self.sf_conn.cursor()
+        cursor = self.postgres_conn.cursor()
 
         cursor.execute(f"{table_cols_query}")
         result = cursor.fetchall()

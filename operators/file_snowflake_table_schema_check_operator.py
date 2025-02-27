@@ -10,11 +10,11 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from core_utils import s3_utils
 from core_utils.config_reader_dbt import ConfigReaderDBT
 
-from operators.constants import table_schema_query, file_schema_query, file_cols_query
+from operators.constants import snowflake_table_schema_query, file_schema_query, file_cols_query
 
 
-class FileTableSchemaCheckOperator(BaseOperator):
-    def __init__(self, snowflake_conn_id,s3_conn_id,bucket_name,s3_configs_path, stage_name,table_name,dataset_name, *args, **kwargs):
+class FileSnowflakeTableSchemaCheckOperator(BaseOperator):
+    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path, stage_name,table_name,dataset_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stage_name = stage_name
         self.table_name = table_name
@@ -22,7 +22,7 @@ class FileTableSchemaCheckOperator(BaseOperator):
         self.bucket_name = bucket_name
         self.s3_conn_id = s3_conn_id
         self.s3_configs_path = s3_configs_path
-        self.sf_conn = SnowflakeHook(snowflake_conn_id=snowflake_conn_id).get_conn()
+        self.sf_conn = SnowflakeHook(snowflake_conn_id=db_conn_id).get_conn()
 
     def get_file_details(self,run_date):
         temp_dir = tempfile.mkdtemp()
