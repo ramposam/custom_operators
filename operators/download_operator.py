@@ -20,7 +20,7 @@ class DownloadOperator(BaseOperator):
     def execute(self, context):
 
         temp_dir = tempfile.mkdtemp()
-        print(f"Temporary directory created at: {temp_dir}")
+        self.log.info(f"Temporary directory created at: {temp_dir}")
 
         self.log.info(f"""data_interval_end:{context["data_interval_end"]}""")
 

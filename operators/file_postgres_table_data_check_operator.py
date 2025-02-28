@@ -45,10 +45,11 @@ class FilePostgresTableDataCheckOperator(BaseOperator):
         """
         Compare two DataFrames and return differences.
         """
+
+        self.log.info(f"file: {df1.shape}, table: {df2.shape}")
+
         if df1.shape != df2.shape:
             self.log.info("DataFrames have different shapes. Comparison may be inconsistent.")
-        else:
-            self.log.info(f"file: {df1.shape}, table: {df2.shape}")
 
         # Compare DataFrames using pandas built-in method
         diff = df1.compare(df2, keep_equal=False)

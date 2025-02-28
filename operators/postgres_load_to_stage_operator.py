@@ -73,7 +73,7 @@ class PostgresLoadToStageOperator(BaseOperator):
         command = f' python /opt/airflow/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" ' \
                   f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
                   f' --s3_conn_id "{self.s3_conn_id}" --db_conn_id "{self.db_conn_id}" ' \
-                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" '
+                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "POSTGRES"  '
 
 
         self.execute_dbt_command(command)

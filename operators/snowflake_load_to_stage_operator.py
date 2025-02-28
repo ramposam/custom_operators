@@ -51,14 +51,14 @@ class SnowflakeLoadToStageOperator(BaseOperator):
         snowflake_user = sf_conn.login  # Username
         snowflake_password = sf_conn.password  # Password
         snowflake_account = sf_conn.host  # Account name (e.g., "account.region.snowflakecomputing.com")
-        snowflake_database = sf_conn.schema  # Default database
+        snowflake_database = sf_conn.database  # Default database
         snowflake_extra = sf_conn.extra_dejson  # Parse JSON in "Extra" field
         self.log.info(f"Snowflake :{snowflake_account}.")
         # Set environment variables
         os.environ["SNOWFLAKE_USER"] = snowflake_user
         os.environ["SNOWFLAKE_PASSWORD"] = snowflake_password
         os.environ["SNOWFLAKE_ACCOUNT"] = "mwpwekh-kc41785"
-        os.environ["SNOWFLAKE_DATABASE"] = "STAGE_DB"
+        os.environ["SNOWFLAKE_DATABASE"] = snowflake_database
         os.environ["SNOWFLAKE_SCHEMA"] = "STAGE"
 
         # Optionally, set other variables from the `extra` field
@@ -80,7 +80,7 @@ class SnowflakeLoadToStageOperator(BaseOperator):
         command = f' python /opt/airflow/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" ' \
                   f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
                   f' --s3_conn_id "{self.s3_conn_id}" --db_conn_id "{self.db_conn_id}" ' \
-                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" '
+                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "SNOWFLAKE"  '
 
 
         self.execute_dbt_command(command)
