@@ -7,6 +7,8 @@ import pendulum
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 import pandas as pd
+from dateutil.parser import parse
+
 
 class CopyFileToPostgresOperator(BaseOperator):
     def __init__(self, db_conn_id,table_name,file_format_params,datetime_pattern,encoding, *args, **kwargs):
@@ -34,6 +36,24 @@ class CopyFileToPostgresOperator(BaseOperator):
 
         return rf"{pattern}"
 
+    def complete_date(self,input_date: str, reference_date: str):
+        """
+        Parses an input date (year or year-month) and fills missing parts using a reference date.
+
+        Args:
+            input_date (str): Date input in format 'yyyy' or 'yyyy-mm'.
+            reference_date (str): Another date (yyyy-mm-dd) to take missing month and/or day from.
+
+        Returns:
+            str: Completed date in 'yyyy-mm-dd' format.
+        """
+        try:
+            ref_date = parse(reference_date)  # Parse reference date
+            parsed_date = parse(input_date, default=datetime(ref_date.year, ref_date.month, ref_date.day))
+            return parsed_date.strftime("%Y-%m-%d")
+        except ValueError:
+            return None  # Invalid input
+
     def extract_file_date(self,filename):
         # Define regex pattern for yyyy-dd-mm format
         pattern = self.generate_regex_pattern(self.datetime_pattern)
@@ -43,13 +63,14 @@ class CopyFileToPostgresOperator(BaseOperator):
         python_date_format = self.datetime_pattern.replace("YYYY", "%Y").replace("MM", "%m").replace("DD", "%d")
 
         if match:
-            year, day, month = match.groups()  # Extract parts based on yyyy-dd-mm format
-            extracted_date = f"{year}-{day}-{month}"  # Format as input
+            extracted_date = match.group()
 
-            # Convert to datetime object and reformat as YYYY-MM-DD
-            converted_date = datetime.strptime(extracted_date, python_date_format)
-
-            return converted_date
+            # Validate and format the date
+            try:
+                valid_date = datetime.strptime(extracted_date, python_date_format)
+                return valid_date.strftime(python_date_format)  # Return in the same format
+            except ValueError:
+                return None  # Invalid date
         else:
             return "No valid date found in filename"
 
@@ -83,7 +104,7 @@ class CopyFileToPostgresOperator(BaseOperator):
         # Transform column names
         df.columns = self.clean_column_names(df.columns)
         # Add metadata columns
-        df["FILE_DATE"] = file_date
+        df["FILE_DATE"] = self.complete_date(file_date,dag_run_date)
         df["FILE_NAME"] = file_name
 
         df["CREATED_DTS"] = current_datetime
