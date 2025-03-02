@@ -3,16 +3,18 @@ import re
 from datetime import datetime
 from io import StringIO
 
+import pendulum
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 import pandas as pd
 
 class CopyFileToPostgresOperator(BaseOperator):
-    def __init__(self, db_conn_id,table_name,file_format_params,datetime_pattern, *args, **kwargs):
+    def __init__(self, db_conn_id,table_name,file_format_params,datetime_pattern,encoding, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.file_format_params = file_format_params
         self.full_table_name = table_name
         self.datetime_pattern = datetime_pattern
+        self.encoding = encoding
         self.postgres_conn = PostgresHook(postgres_conn_id=db_conn_id).get_conn()
 
     def generate_regex_pattern(self,date_format):
@@ -65,18 +67,18 @@ class CopyFileToPostgresOperator(BaseOperator):
             return None
 
     # Function to load data into PostgreSQL using column mapping
-    def load_data_to_postgres(self,file_path ):
+    def load_data_to_postgres(self,file_path,dag_run_date ):
         # Extract metadata
         file_name = os.path.basename(file_path)
-        file_date = self.extract_file_date(file_name)
+        file_date = self.extract_file_date(file_name) if self.datetime_pattern else dag_run_date
         username_query = "select current_user"
         current_datetime = datetime.now()
         delimiter = self.file_format_params.get("delimiter",",")
-        line_terminator = "\n"
+        # line_terminator = "\n"
         encoding = "utf-8"
 
         # Read file as DataFrame
-        df = pd.read_csv(file_path, delimiter=delimiter, lineterminator=line_terminator, encoding=encoding)
+        df = pd.read_csv(file_path, delimiter=delimiter,  encoding=encoding)
 
         # Transform column names
         df.columns = self.clean_column_names(df.columns)
@@ -130,5 +132,6 @@ class CopyFileToPostgresOperator(BaseOperator):
     def execute(self, context):
 
         file_path = context['ti'].xcom_pull(key='downloaded_file_path')
-
-        self.load_data_to_postgres(file_path)
+        dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(), pendulum.tz.UTC).strftime(
+            '%Y-%m-%d')
+        self.load_data_to_postgres(file_path,dag_run_date)

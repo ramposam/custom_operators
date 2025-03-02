@@ -14,7 +14,7 @@ from operators.constants import snowflake_table_schema_query, file_schema_query,
 
 
 class FileSnowflakeTableSchemaCheckOperator(BaseOperator):
-    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path, stage_name,table_name,dataset_name, *args, **kwargs):
+    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path, stage_name,table_name,encoding,dataset_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stage_name = stage_name
         self.table_name = table_name
@@ -22,6 +22,7 @@ class FileSnowflakeTableSchemaCheckOperator(BaseOperator):
         self.bucket_name = bucket_name
         self.s3_conn_id = s3_conn_id
         self.s3_configs_path = s3_configs_path
+        self.encoding = encoding
         self.sf_conn = SnowflakeHook(snowflake_conn_id=db_conn_id).get_conn()
 
     def get_file_details(self,run_date):

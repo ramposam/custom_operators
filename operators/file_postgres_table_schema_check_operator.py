@@ -11,12 +11,13 @@ from core_utils.config_reader_dbt import ConfigReaderDBT
 import pandas as pd
 
 class FilePostgresTableSchemaCheckOperator(BaseOperator):
-    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path,dataset_name, *args, **kwargs):
+    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path,dataset_name,encoding, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dataset_name = dataset_name
         self.bucket_name = bucket_name
         self.s3_conn_id = s3_conn_id
         self.s3_configs_path = s3_configs_path
+        self.encoding = encoding
         self.postgres_conn = PostgresHook(postgres_conn_id=db_conn_id).get_conn()
 
     def get_file_details(self,run_date):
@@ -50,7 +51,7 @@ class FilePostgresTableSchemaCheckOperator(BaseOperator):
         delimiter = file_format_params["delimiter"]
 
         # Read file as DataFrame
-        df = pd.read_csv(rawfile_path, delimiter=delimiter, lineterminator="\n", encoding="utf-8")
+        df = pd.read_csv(rawfile_path, delimiter=delimiter, encoding=self.encoding,nrows=100)
 
         # Transform column names
         df.columns = self.clean_column_names(df.columns)

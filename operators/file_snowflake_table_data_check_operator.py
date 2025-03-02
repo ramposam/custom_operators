@@ -12,13 +12,14 @@ from core_utils.config_reader_dbt import ConfigReaderDBT
 from operators.constants import snowflake_table_schema_query, file_schema_query, file_cols_query
 
 class FileSnowflakeTableDataCheckOperator(BaseOperator):
-    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path,table_name,dataset_name, *args, **kwargs):
+    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path,table_name,dataset_name,encoding, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.table_name = table_name
         self.dataset_name = dataset_name
         self.bucket_name = bucket_name
         self.s3_conn_id = s3_conn_id
         self.s3_configs_path = s3_configs_path
+        self.encoding = encoding
         self.sf_conn = SnowflakeHook(snowflake_conn_id=db_conn_id).get_conn()
 
     def get_file_details(self,run_date):
