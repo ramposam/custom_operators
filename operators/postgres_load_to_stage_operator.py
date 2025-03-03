@@ -76,5 +76,6 @@ class PostgresLoadToStageOperator(BaseOperator):
                   f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "POSTGRES"  '
 
 
+
         self.execute_dbt_command(command)
 

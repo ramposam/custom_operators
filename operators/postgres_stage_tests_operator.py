@@ -1,15 +1,13 @@
 import os
 from datetime import datetime
-from airflow.hooks.base import BaseHook
 
 import pendulum
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 import subprocess
 
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
-
-class SnowflakeLoadToMirrorOperator(BaseOperator):
+class PostgresStageTestsOperator(BaseOperator):
     def __init__(self, s3_conn_id,db_conn_id,bucket_name,s3_configs_path, dataset_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
@@ -18,37 +16,10 @@ class SnowflakeLoadToMirrorOperator(BaseOperator):
         self.s3_conn_id = s3_conn_id
         self.db_conn_id = db_conn_id
 
-    def set_snowflake_env_vars(self):
-        # Extract details
-        sf_conn = BaseHook.get_connection(self.db_conn_id)
-
-        # Extract connection details
-        snowflake_user = sf_conn.login  # Username
-        snowflake_password = sf_conn.password  # Password
-        snowflake_account = sf_conn.host  # Account name (e.g., "account.region.snowflakecomputing.com")
-        snowflake_extra = sf_conn.extra_dejson  # Parse JSON in "Extra" field
-        self.log.info(f"Snowflake :{snowflake_account}.")
-        # Set environment variables
-        os.environ["SNOWFLAKE_USER"] = snowflake_user
-        os.environ["SNOWFLAKE_PASSWORD"] = snowflake_password
-        os.environ["SNOWFLAKE_ACCOUNT"] = "mwpwekh-kc41785"
-        os.environ["SNOWFLAKE_DATABASE"] = "MIRROR_DB"
-        os.environ["SNOWFLAKE_SCHEMA"] = "MIRROR"
-
-        # Optionally, set other variables from the `extra` field
-        if "warehouse" in snowflake_extra:
-            os.environ["SNOWFLAKE_WAREHOUSE"] = snowflake_extra["warehouse"]
-        if "role" in snowflake_extra:
-            os.environ["SNOWFLAKE_ROLE"] = snowflake_extra["role"]
-
-        self.log.info("Snowflake environment variables set successfully.")
-
     def execute_dbt_command(self, dbt_command):
         """
         Execute the dbt command as a subprocess.
         """
-        self.set_snowflake_env_vars()
-
         try:
             self.log.info(f"Running dbt command: {dbt_command}")
             process = subprocess.Popen(
@@ -72,19 +43,38 @@ class SnowflakeLoadToMirrorOperator(BaseOperator):
             self.log.error(f"Command failed with error: {e.stderr}")
             raise
 
+    def set_postgres_env_vars(self):
+        # Extract details
+        postgres_conn = BaseHook.get_connection(self.db_conn_id)
+
+        # Extract connection details
+        postgres_user = postgres_conn.login  # Username
+        postgres_password = postgres_conn.password  # Password
+        postgres_host = postgres_conn.host  # Account name (e.g., "account.region.postgrescomputing.com")
+        postgres_database = postgres_conn.schema
+        postgres_extra = postgres_conn.extra_dejson  # Parse JSON in "Extra" field
+        self.log.info(f"postgres :{postgres_host}.")
+        # Set environment variables
+        os.environ["POSTGRES_USER"] = postgres_user
+        os.environ["POSTGRES_PASSWORD"] = postgres_password
+        os.environ["POSTGRES_HOST"] = postgres_host
+        os.environ["POSTGRES_DATABASE"] = postgres_database
+
+        self.log.info("postgres environment variables set successfully.")
+
     def execute(self, context):
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
 
+        self.set_postgres_env_vars()
+
         # Build the command
-        dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt run --select tag:{self.dataset_name}-mirror --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "
+        dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt test --select tag:{self.dataset_name}-stage --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "
 
         command = f' python /opt/airflow/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" ' \
                   f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
                   f' --s3_conn_id "{self.s3_conn_id}" --db_conn_id "{self.db_conn_id}" ' \
-                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" --layer "mirror"    --db_type "SNOWFLAKE" '
-
+                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "POSTGRES"  '
 
 
         self.execute_dbt_command(command)
-
 

@@ -9,7 +9,8 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from core_utils import s3_utils
 from core_utils.config_reader_dbt import ConfigReaderDBT
 
-from operators.constants import  file_schema_query, file_cols_query, postgres_table_schema_query
+from operators.constants import file_schema_query, file_cols_query, postgres_table_schema_query, \
+    postgres_col_count_query
 
 
 class FilePostgresTableDataCheckOperator(BaseOperator):
@@ -74,6 +75,25 @@ class FilePostgresTableDataCheckOperator(BaseOperator):
         # Identify rows that are in df2 but not in df1
         # df2_not_in_df1 = df2[~df2.apply(tuple, axis=1).isin(df1.apply(tuple, axis=1))]
 
+    def compare_dicts(self,dict1, dict2):
+        differences = {}
+
+        for key in dict1.keys() | dict2.keys():  # Union of keys from both dicts
+            val1 = dict1.get(key, {})
+            val2 = dict2.get(key, {})
+
+            diff = {}
+            for sub_key in val1.keys() | val2.keys():
+                sub_val1 = val1.get(sub_key)
+                sub_val2 = val2.get(sub_key)
+                if sub_val1 != sub_val2:
+                    diff[sub_key] = {"dict1": sub_val1, "dict2": sub_val2}
+
+            if diff:
+                differences[key] = diff
+
+        return differences
+
 
 
     def compare_file_table_data(self, run_date, file_path, delimiter=","):
@@ -87,35 +107,54 @@ class FilePostgresTableDataCheckOperator(BaseOperator):
         self.log.info(f"Table columns query:{table_cols_query}")
 
         # Load the file data into a DataFrame
-        file_df = pd.read_csv(file_path, sep=delimiter)
+        file_df = pd.read_csv(file_path, sep=delimiter, encoding=self.encoding)
         file_df.columns = file_df.columns.str.upper().str.replace(" ", "_")
-        self.log.info(f"file_df cols {list(file_df.columns)} ")
+        self.log.info(f"File cols {list(file_df.columns)} ")
+
+        file_col_cnt_mappings = {}
+        for col in file_df.columns:
+            file_col_cnt_mappings[col]= {"total_count":file_df[col].count(),"distinct_count":file_df[col].nunique()}
 
         cursor = self.postgres_conn.cursor()
 
         cursor.execute(f"{table_cols_query}")
         result = cursor.fetchall()
 
-        self.log.info(f"Table columns: {result[0]}")
-
         table_cols_str = ','.join([f'"{col}"' for col in result[0][0].split(",")])
+        self.log.info(f"Table columns: {table_cols_str}")
 
-        query = f"""
-            SELECT {table_cols_str} FROM "{mirror_db}"."{mirror_schema}"."{mirror_table}"
-            where "FILE_DATE" = '{run_date}'
-            """
-        self.log.info(f"Table Data Query:{query}")
+        col_distinct_count_queries = postgres_col_count_query.format(mirror_db=mirror_db,
+                                                 mirror_schema=mirror_schema,
+                                                 mirror_table=mirror_table,
+                                                 file_date=run_date)
 
-        table_df = pd.read_sql(query, self.postgres_conn)
-        self.log.info(f"table_df cols {table_df.columns}")
+        self.log.info(f"Table Data Query:{col_distinct_count_queries}")
+        cursor.execute(f"{col_distinct_count_queries}")
+        result = cursor.fetchall()
+
+        table_col_cnt_mappings = {}
+        for col, query in result:
+            self.log.info(f"column {col} query:{query}")
+            cursor.execute(f"{query}")
+            col_cnt_result = cursor.fetchall()
+            total_rec_cnt = col_cnt_result[0][0]
+            distinct_rec_cnt = col_cnt_result[0][1]
+
+            table_col_cnt_mappings[col] = {"total_count": total_rec_cnt, "distinct_count": distinct_rec_cnt}
+
+        self.log.info(f"File column counts:{file_col_cnt_mappings}")
+        self.log.info(f"Table column counts:{table_col_cnt_mappings}")
 
         # Compare DataFrames
-        differences = self.compare_dataframes(file_df,table_df)
+        # differences = self.compare_dataframes(file_df,table_df)
+        result = self.compare_dicts(file_col_cnt_mappings,table_col_cnt_mappings)
 
-        if differences:
-        # Print Results
-            self.log.info("\n Differences:")
-            self.log.info(differences["differences"])
+        if len(result)>0:
+            self.log.info(f"File and Table has different data counts:{result}")
+            raise Exception(f"File and Table has different data counts:{result}")
+
+        else:
+            self.log.info(f"File and Table column count are same.")
 
         # self.log.info("\n Rows in df1 but not in df2:")
         # self.log.info(differences["rows_in_df1_not_in_df2"])

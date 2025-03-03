@@ -98,6 +98,7 @@ class CopyFileToPostgresOperator(BaseOperator):
         # line_terminator = "\n"
         encoding = "utf-8"
 
+        self.log.info(f"Reading file from location: {file_path}")
         # Read file as DataFrame
         df = pd.read_csv(file_path, delimiter=delimiter,  encoding=encoding)
 
@@ -144,6 +145,10 @@ class CopyFileToPostgresOperator(BaseOperator):
             FROM STDIN WITH CSV DELIMITER '{delimiter}' NULL '';
         """
         self.log.info(f"Copy sql: {copy_sql}")
+
+        truncate_query = f""" truncate table "{schema_name}"."{table_name}" """
+        self.log.info(f"Truncate table query: {truncate_query} ")
+        cur.execute(truncate_query)
 
         cur.copy_expert(copy_sql, buffer)
         self.postgres_conn.commit()

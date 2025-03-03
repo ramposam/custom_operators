@@ -50,6 +50,7 @@ class FilePostgresTableSchemaCheckOperator(BaseOperator):
         file_format_params = configs[self.dataset_name]["mirror"]["file_format_params"]
         delimiter = file_format_params["delimiter"]
 
+        self.log.info(f"Reading file from temporary area: {rawfile_path}")
         # Read file as DataFrame
         df = pd.read_csv(rawfile_path, delimiter=delimiter, encoding=self.encoding,nrows=100)
 

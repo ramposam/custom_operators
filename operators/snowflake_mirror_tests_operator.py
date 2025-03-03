@@ -9,7 +9,7 @@ import subprocess
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
-class SnowflakeLoadToMirrorOperator(BaseOperator):
+class SnowflakeMirrorTestsOperator(BaseOperator):
     def __init__(self, s3_conn_id,db_conn_id,bucket_name,s3_configs_path, dataset_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
@@ -76,7 +76,7 @@ class SnowflakeLoadToMirrorOperator(BaseOperator):
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
 
         # Build the command
-        dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt run --select tag:{self.dataset_name}-mirror --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "
+        dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt test --select tag:{self.dataset_name}-mirror --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "
 
         command = f' python /opt/airflow/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" ' \
                   f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
@@ -84,7 +84,5 @@ class SnowflakeLoadToMirrorOperator(BaseOperator):
                   f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" --layer "mirror"    --db_type "SNOWFLAKE" '
 
 
-
         self.execute_dbt_command(command)
-
 
