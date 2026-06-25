@@ -10,10 +10,10 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
 class SnowflakeMirrorTestsOperator(BaseOperator):
-    def __init__(self, s3_conn_id,db_conn_id,bucket_name,s3_configs_path, dataset_name, *args, **kwargs):
+    def __init__(self, s3_conn_id=None, db_conn_id=None, bucket_name=None, configs_path=None, dataset_name=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
-        self.s3_configs_path = s3_configs_path
+        self.configs_path = configs_path
         self.dataset_name = dataset_name
         self.s3_conn_id = s3_conn_id
         self.db_conn_id = db_conn_id
@@ -55,13 +55,13 @@ class SnowflakeMirrorTestsOperator(BaseOperator):
                 dbt_command,
                 shell=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True
             )
 
             stdout, stderr = process.communicate()
 
-            if len(stdout) > 0:
+            if process.returncode == 0:
                 self.log.info(f"Command output: {stdout}")
             else:
                 self.log.error(f"Command output: {stderr}")
@@ -78,11 +78,18 @@ class SnowflakeMirrorTestsOperator(BaseOperator):
         # Build the command
         dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt test --select tag:{self.dataset_name}-mirror --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "
 
-        command = f' python /opt/airflow/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.s3_configs_path}" ' \
-                  f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
-                  f' --s3_conn_id "{self.s3_conn_id}" --db_conn_id "{self.db_conn_id}" ' \
-                  f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" --layer "mirror"    --db_type "SNOWFLAKE" '
-
+        if self.bucket_name and self.bucket_name != "None":
+            # Use S3
+            command = f' python /opt/airflow/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.configs_path}" ' \
+                      f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
+                      f' --s3_conn_id "{self.s3_conn_id}" --db_conn_id "{self.db_conn_id}" ' \
+                      f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" --layer "mirror"    --db_type "SNOWFLAKE" '
+        else:
+            # Use local file system
+            command = f' python /opt/airflow/generate_models.py --configs_path "{self.configs_path}" ' \
+                      f' --run_date "{dag_run_date}" --mode "airflow" ' \
+                      f' --db_conn_id "{self.db_conn_id}" ' \
+                      f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}" --layer "mirror"    --db_type "SNOWFLAKE" '
 
         self.execute_dbt_command(command)
 

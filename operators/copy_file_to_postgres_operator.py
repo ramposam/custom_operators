@@ -50,6 +50,7 @@ class CopyFileToPostgresOperator(BaseOperator):
         try:
             ref_date = parse(reference_date)  # Parse reference date
             parsed_date = parse(input_date, default=datetime(ref_date.year, ref_date.month, ref_date.day))
+            self.log.info(f"parsed_date: {parsed_date}")
             return parsed_date.strftime("%Y-%m-%d")
         except ValueError:
             return None  # Invalid input
@@ -92,6 +93,7 @@ class CopyFileToPostgresOperator(BaseOperator):
         # Extract metadata
         file_name = os.path.basename(file_path)
         file_date = self.extract_file_date(file_name) if self.datetime_pattern else dag_run_date
+        self.log.info(f"file_date: {file_date}")
         username_query = "select current_user"
         current_datetime = datetime.now()
         delimiter = self.file_format_params.get("delimiter",",")
@@ -155,9 +157,39 @@ class CopyFileToPostgresOperator(BaseOperator):
 
         self.log.info(f"Successfully loaded {len(df)} records from {file_name} into {self.full_table_name}")
 
-    def execute(self, context):
+    def get_all_upstream_task_ids(self, context):
+        """Get all upstream task IDs recursively by traversing the DAG structure in BFS order."""
+        dag = context['dag']
+        current_task_id = context['task'].task_id
+        
+        # Get all tasks in the DAG
+        all_tasks = {task.task_id: task for task in dag.tasks}
+        
+        # Find all upstream tasks recursively using BFS to maintain order
+        upstream_task_ids = []
+        visited = set()
+        queue = [current_task_id]
+        
+        while queue:
+            task_id = queue.pop(0)
+            if task_id in visited:
+                continue
+            visited.add(task_id)
+            
+            task = all_tasks.get(task_id)
+            if task:
+                for upstream_task_id in task.upstream_task_ids:
+                    if upstream_task_id not in visited and upstream_task_id not in upstream_task_ids:
+                        upstream_task_ids.append(upstream_task_id)
+                        queue.append(upstream_task_id)
+        
+        return upstream_task_ids
 
-        file_path = context['ti'].xcom_pull(key='downloaded_file_path')
+    def execute(self, context):
+        self.log.info(f"upstream_task_ids: {self.upstream_task_ids}")
+        all_upstream_task_ids = self.get_all_upstream_task_ids(context)
+        self.log.info(f"""all upstream task ids: {all_upstream_task_ids}""")
+        file_path = context['ti'].xcom_pull(task_ids=all_upstream_task_ids[1],key='downloaded_file_path')
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(), pendulum.tz.UTC).strftime(
             '%Y-%m-%d')
         self.load_data_to_postgres(file_path,dag_run_date)

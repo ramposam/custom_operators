@@ -29,7 +29,7 @@ postgres_col_count_query = """
             'SELECT COUNT( %I) AS %I,COUNT(DISTINCT %I) AS %I FROM "{mirror_schema}"."{mirror_table}" WHERE "FILE_DATE" = %L;',
             column_name,column_name,column_name,column_name, '{file_date}'
         ) AS query_text
-    FROM "COMMON_DB".information_schema.columns
+    FROM information_schema.columns
     WHERE table_schema = '{mirror_schema}'
       AND table_name = '{mirror_table}'
     AND COLUMN_NAME NOT IN ('CREATED_BY','CREATED_DTS','FILE_DATE','FILE_NAME','FILE_LAST_MODIFIED','FILE_ROW_NUMBER','FILENAME',

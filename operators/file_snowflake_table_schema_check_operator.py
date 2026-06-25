@@ -14,14 +14,14 @@ from operators.constants import snowflake_table_schema_query, file_schema_query,
 
 
 class FileSnowflakeTableSchemaCheckOperator(BaseOperator):
-    def __init__(self, db_conn_id,s3_conn_id,bucket_name,s3_configs_path, stage_name,table_name,encoding,dataset_name, *args, **kwargs):
+    def __init__(self, db_conn_id, s3_conn_id=None, bucket_name=None, configs_path=None, stage_name=None, table_name=None, encoding=None, dataset_name=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stage_name = stage_name
         self.table_name = table_name
         self.dataset_name = dataset_name
         self.bucket_name = bucket_name
         self.s3_conn_id = s3_conn_id
-        self.s3_configs_path = s3_configs_path
+        self.configs_path = configs_path
         self.encoding = encoding
         self.sf_conn = SnowflakeHook(snowflake_conn_id=db_conn_id).get_conn()
 
@@ -30,12 +30,23 @@ class FileSnowflakeTableSchemaCheckOperator(BaseOperator):
         local_dir = os.path.join(temp_dir, "configs", self.dataset_name)
 
         Path(local_dir).mkdir(exist_ok=True,parents=True)
-        self.log.info(f"Temporary directory created:{local_dir} to download configs from s3" )
+        self.log.info(f"Temporary directory created:{local_dir} to load configs" )
 
-        # Example usage
-        s3_folder = f"{os.path.join(self.s3_configs_path, self.dataset_name)}"  # "dataset_configs/dev"
+        if self.bucket_name and self.bucket_name != "None":
+            # Use S3 to download configs
+            s3_folder = f"{os.path.join(self.configs_path, self.dataset_name)}"  # "dataset_configs/dev"
+            s3_utils.download_s3_folder(self.s3_conn_id, self.bucket_name, s3_folder, local_dir)
+            self.log.info(f"Configs downloaded from S3 to {local_dir}")
+        else:
+            # Use local config path
+            source_dir = os.path.join(self.configs_path, self.dataset_name)
+            if os.path.exists(source_dir):
+                import shutil
+                shutil.copytree(source_dir, local_dir, dirs_exist_ok=True)
+                self.log.info(f"Configs copied from local path {source_dir} to {local_dir}")
+            else:
+                raise Exception(f"Local config path {source_dir} does not exist")
 
-        s3_utils.download_s3_folder(self.s3_conn_id, self.bucket_name, s3_folder, local_dir)
         reader = ConfigReaderDBT(dataset_configs_path=local_dir,
                                  dataset_name=self.dataset_name,
                                  run_date=run_date)
