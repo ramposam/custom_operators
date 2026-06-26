@@ -72,8 +72,6 @@ class SnowflakeStageTestsOperator(BaseOperator):
     def execute(self, context):
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
 
-        self.set_snowflake_env_vars()
-
         # Build the command
         dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt test --select tag:{self.dataset_name}-stage --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "
 

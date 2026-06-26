@@ -20,6 +20,8 @@ class PostgresStageTestsOperator(BaseOperator):
         """
         Execute the dbt command as a subprocess.
         """
+        self.set_postgres_env_vars()
+
         try:
             self.log.info(f"Running dbt command: {dbt_command}")
             process = subprocess.Popen(
@@ -63,9 +65,8 @@ class PostgresStageTestsOperator(BaseOperator):
         self.log.info("postgres environment variables set successfully.")
 
     def execute(self, context):
-        dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
-
         self.set_postgres_env_vars()
+        dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
 
         # Build the command
         dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt test --select tag:{self.dataset_name}-stage --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "

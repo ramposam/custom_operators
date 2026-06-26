@@ -20,6 +20,8 @@ class SnowflakeLoadToStageOperator(BaseOperator):
         """
         Execute the dbt command as a subprocess.
         """
+        self.set_snowflake_env_vars()
+
         try:
             self.log.info(f"Running dbt command: {dbt_command}")
             process = subprocess.Popen(
@@ -72,23 +74,21 @@ class SnowflakeLoadToStageOperator(BaseOperator):
     def execute(self, context):
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime('%Y-%m-%d')
 
-        self.set_snowflake_env_vars()
-
         # Build the command
-        dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt run --select tag:{self.dataset_name}-stage --vars \\\" {{\'run_date\': \'{dag_run_date}\'}} \\\" "
+        dbt_build_str = f" cd /opt/airflow/dbt/ &&  dbt run --select tag:{self.dataset_name}-stage --vars \\\" {{\'run_date\': \'{dag_run_date}\', \'materialization\': \'scd_type_2\'}} \\\" "
 
         if self.bucket_name and self.bucket_name != "None":
             # Use S3
             command = f' python /opt/airflow/generate_models.py --bucket_name "{self.bucket_name}" --configs_path  "{self.configs_path}" ' \
                       f' --run_date "{dag_run_date}" --mode "airflow" --force_download "true" ' \
                       f' --s3_conn_id "{self.s3_conn_id}" --db_conn_id "{self.db_conn_id}" ' \
-                      f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "SNOWFLAKE"  --materialization "incremental_scd_type_2" '
+                      f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "SNOWFLAKE"  '
         else:
             # Use local file system
             command = f' python /opt/airflow/generate_models.py --configs_path "{self.configs_path}" ' \
                       f' --run_date "{dag_run_date}" --mode "airflow" ' \
                       f' --db_conn_id "{self.db_conn_id}" ' \
-                      f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "SNOWFLAKE"  --materialization "incremental_scd_type_2" '
+                      f' --dataset_name "{self.dataset_name}" --dbt_command "{dbt_build_str}"  --layer "stage"   --db_type "SNOWFLAKE"  '
 
         self.execute_dbt_command(command)
 

@@ -51,7 +51,7 @@ class AcquisitionOperator(BaseOperator):
                 return []
             
             all_files = [obj['Key'] for obj in response['Contents']]
-
+        self.log.info(f"All files found:{all_files}")
         self.log.info(f"""data_interval_end:{context["data_interval_end"]}""")
 
         dag_run_date = datetime.fromtimestamp(context["data_interval_end"].timestamp(),pendulum.tz.UTC).strftime(self.datetime_pattern)
