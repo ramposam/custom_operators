@@ -461,7 +461,7 @@ Configure the following Airflow connections:
 
 ## License
 
-[Your License Here]
+MIT License
 
 ## Support
 

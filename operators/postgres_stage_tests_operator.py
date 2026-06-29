@@ -37,8 +37,8 @@ class PostgresStageTestsOperator(BaseOperator):
             if process.returncode == 0:
                 self.log.info(f"Command output: {stdout}")
             else:
-                self.log.error(f"Command output: {stderr}")
-                raise Exception(f"Command output: {stderr}")
+                self.log.error(f"Command output: {stdout}")
+                raise Exception(f"Command output: {stdout}")
 
             return stdout
         except subprocess.CalledProcessError as e:

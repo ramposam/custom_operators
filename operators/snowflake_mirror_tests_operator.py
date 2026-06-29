@@ -33,7 +33,7 @@ class SnowflakeMirrorTestsOperator(BaseOperator):
         # Set environment variables
         os.environ["SNOWFLAKE_USER"] = snowflake_user
         os.environ["SNOWFLAKE_PASSWORD"] = snowflake_password
-        os.environ["SNOWFLAKE_ACCOUNT"] = "mwpwekh-kc41785"
+        os.environ["SNOWFLAKE_ACCOUNT"] = snowflake_account
         os.environ["SNOWFLAKE_DATABASE"] = snowflake_database
         os.environ["SNOWFLAKE_SCHEMA"] = snowflake_schema
 
@@ -66,8 +66,8 @@ class SnowflakeMirrorTestsOperator(BaseOperator):
             if process.returncode == 0:
                 self.log.info(f"Command output: {stdout}")
             else:
-                self.log.error(f"Command output: {stderr}")
-                raise Exception(f"Command output: {stderr}")
+                self.log.error(f"Command output: {stdout}")
+                raise Exception(f"Command output: {stdout}")
 
             return stdout
         except subprocess.CalledProcessError as e:
