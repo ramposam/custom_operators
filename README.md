@@ -1,12 +1,14 @@
 # Custom Operators Library
 
-A comprehensive collection of Apache Airflow custom operators designed for building data pipelines with multi-layer architecture (Mirror and Stage layers). This library integrates seamlessly with dbt-based data transformation workflows and supports both PostgreSQL and Snowflake data warehouses.
+A comprehensive collection of Apache Airflow custom operators designed for building data pipelines with multi-layer architecture. This library integrates seamlessly with dbt-based data transformation workflows and supports both PostgreSQL and Snowflake data warehouses.
 
 ## Overview
 
 This library provides reusable Airflow operators that automate data movement across pipeline layers:
-- **Mirror Layer**: Raw data ingestion with append-only storage for historical tracking
-- **Stage Layer**: Transformed data with SCD Type 2 capabilities for change tracking
+- **Layer 1 (e.g., Mirror)**: Raw data ingestion with append-only storage for historical tracking
+- **Layer 2 (e.g., Stage)**: Transformed data with SCD Type 2 capabilities for change tracking
+
+**Dynamic Configuration**: Database and schema names are dynamically extracted from Airflow connection configurations, allowing flexible layer naming (e.g., MIRROR, STAGE, or any custom layer names).
 
 The operators work in conjunction with `generate_models.py` from the dbt_postgres pipeline to generate dbt models from configurations and execute data transformations.
 
@@ -15,13 +17,13 @@ The operators work in conjunction with `generate_models.py` from the dbt_postgre
 ### Pipeline Flow
 
 ```
-Source Files → Mirror Layer (Raw) → Stage Layer (Transformed + SCD Type 2)
+Source Files → Layer 1 (Raw) → Layer 2 (Transformed + SCD Type 2)
      ↓              ↓                        ↓
-  Acquisition    Mirror Load            Stage Load
+  Acquisition    Layer 1 Load           Layer 2 Load
      ↓              ↓                        ↓
   Download       dbt Run                dbt Run
      ↓              ↓                        ↓
-  Schema Check   Mirror Tests           Stage Tests
+  Schema Check   Layer 1 Tests          Layer 2 Tests
 ```
 
 ### Operator Categories

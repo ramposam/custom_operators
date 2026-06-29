@@ -43,7 +43,15 @@ class AcquisitionOperator(BaseOperator):
                 return []
         else:
             # Use S3
-            response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=self.dataset_dir)
+            # Strip S3 protocol and bucket name from prefix if present
+            s3_prefix = self.dataset_dir
+            if s3_prefix.startswith('s3://'):
+                # Remove s3://
+                s3_prefix = s3_prefix[5:]
+                # Remove bucket name if present
+                if s3_prefix.startswith(self.bucket_name + '/'):
+                    s3_prefix = s3_prefix[len(self.bucket_name)+1:]
+            response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=s3_prefix)
 
             # Check if any contents are returned
             if 'Contents' not in response:

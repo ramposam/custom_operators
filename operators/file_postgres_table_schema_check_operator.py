@@ -30,8 +30,16 @@ class FilePostgresTableSchemaCheckOperator(BaseOperator):
         if self.bucket_name and self.bucket_name != "None":
             # Use S3 to download configs
             s3_folder = f"{os.path.join(self.configs_path, self.dataset_name)}"  # "dataset_configs/dev"
+            # Strip S3 protocol and bucket name from prefix if present
+            if s3_folder.startswith('s3://'):
+                s3_folder = s3_folder[5:]
+                if s3_folder.startswith(self.bucket_name + '/'):
+                    s3_folder = s3_folder[len(self.bucket_name)+1:]
             s3_utils.download_s3_folder(self.s3_conn_id, self.bucket_name, s3_folder, local_dir)
             self.log.info(f"Configs downloaded from S3 to {local_dir}")
+            # Verify files were actually downloaded
+            if not any(os.path.exists(os.path.join(local_dir, f)) for f in os.listdir(local_dir)):
+                raise Exception(f"No config files found in S3 at prefix '{s3_folder}' in bucket '{self.bucket_name}'. Local directory '{local_dir}' is empty after download attempt.")
         else:
             # Use local config path
             source_dir = os.path.join(self.configs_path, self.dataset_name)

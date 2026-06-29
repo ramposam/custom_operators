@@ -52,6 +52,7 @@ class SnowflakeStageTestsOperator(BaseOperator):
         snowflake_password = sf_conn.password  # Password
         snowflake_account = sf_conn.host  # Account name (e.g., "account.region.snowflakecomputing.com")
         snowflake_database = sf_conn.database  # Default database
+        snowflake_schema = sf_conn.schema  # Default schema
         snowflake_extra = sf_conn.extra_dejson  # Parse JSON in "Extra" field
         self.log.info(f"Snowflake :{snowflake_account}.")
         # Set environment variables
@@ -59,7 +60,7 @@ class SnowflakeStageTestsOperator(BaseOperator):
         os.environ["SNOWFLAKE_PASSWORD"] = snowflake_password
         os.environ["SNOWFLAKE_ACCOUNT"] = "mwpwekh-kc41785"
         os.environ["SNOWFLAKE_DATABASE"] = snowflake_database
-        os.environ["SNOWFLAKE_SCHEMA"] = "STAGE"
+        os.environ["SNOWFLAKE_SCHEMA"] = snowflake_schema
 
         # Optionally, set other variables from the `extra` field
         if "warehouse" in snowflake_extra:
